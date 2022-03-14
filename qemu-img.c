@@ -1084,7 +1084,7 @@ static int img_commit(int argc, char **argv)
     }
 
     WITH_JOB_LOCK_GUARD() {
-        job = block_job_get("commit");
+        job = block_job_get_locked("commit");
     }
     assert(job);
     run_block_job(job, &local_err);
