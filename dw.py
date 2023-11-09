@@ -7,7 +7,7 @@ model_path = "./resnet18.pth"
 model = torch.load(model_path)
 model.eval()
 
-# 定义 FastAPI 应用
+# 定义 FastAPI 应用adf
 app = fastapi.FastAPI()
 
 # 定义图像分类路由
