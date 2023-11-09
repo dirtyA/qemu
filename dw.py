@@ -1,99 +1,30 @@
-from fastapi import FastAPI, Body
-import kubernetes.client
+import torch
+from torchvision import models
+import fastapi
 
-app = FastAPI()
+# 加载模型
+model_path = "./resnet18.pth"
+model = torch.load(model_path)
+model.eval()
 
-@app.get("/pods")
-async def list_pods():
-    """
-    获取命令空间为www下所有的pod名称。
+# 定义 FastAPI 应用
+app = fastapi.FastAPI()
 
-    :return: pod 名称列表。
-    """
+# 定义图像分类路由
+@app.post("/predict")
+async def predict(image: bytes):
+    # 解码图像
+    image = torch.from_numpy(image.numpy())
+    image = image.unsqueeze(0)
+    image = image.float()
 
-    configuration = kubernetes.client.Configuration()
-    # Configure API key authorization: BearerToken
-    configuration.api_key['authorization'] = 'YOUR_API_KEY'
+    # 进行预测
+    outputs = model(image)
+    _, preds = torch.max(outputs, 1)
 
-    with kubernetes.client.ApiClient(configuration) as api_client:
-        api_instance = kubernetes.client.CoreV1Api(api_client)
+    # 返回预测结果
+    return {"label": classes[preds[0].item()]}
 
-        # 获取 pod 列表。
-        pods = api_instance.list_namespaced_pod("www")
-
-        # 返回 pod 名称列表。
-        return pods.items
-
-
-def delete_pods(pod_names: List[str]):
-    """
-    删除 Pod。
-
-    :param pod_names: Pod 的名称列表。
-    :return: 删除 Pod 的结果。
-    """
-
-    configuration = kubernetes.client.Configuration()
-    # Configure API key authorization: BearerToken
-    configuration.api_key['authorization'] = 'YOUR_API_KEY'
-
-    with kubernetes.client.ApiClient(configuration) as api_client:
-        api_instance = kubernetes.client.CoreV1Api(api_client)
-
-        # 删除 Pod。
-        try:
-            for pod_name in pod_names:
-                api_response = api_instance.delete_namespaced_pod(
-                    pod_name,
-                    "www",
-                    grace_period_seconds=56,
-                    orphan_dependents=True
-                )
-            return {"success": True}
-        except ApiException as e:
-            return {"success": False, "message": e.body["message"]}
-
-
-@app.post("/restart1")
-async def restart1():
-    """
-    删除list1中所有的pod。
-
-    :return: 删除 Pod 的结果。
-    """
-
-    pods = await list_pods()
-    list1 = []
-    for pod in pods:
-        if "ml1" in pod.metadata.name:
-            list1.append(pod.metadata.name)
-
-    # 删除 Pod。
-    result = delete_pods(list1)
-
-    return result
-
-
-@app.post("/restart2")
-async def restart2():
-    """
-    删除list2里面的所有接口。
-
-    :return: 删除 Pod 的结果。
-    """
-
-    pods = await list_pods()
-    list2 = []
-    for pod in pods:
-        if "ml2" in pod.metadata.name:
-            list2.append(pod.metadata.name)
-
-    # 删除 Pod。
-    result = delete_pods(list2)
-
-    return result
-
-
+# 启动应用
 if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    app.run(debug=True)
