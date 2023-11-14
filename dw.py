@@ -90,3 +90,32 @@ async def restart2():
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
+
+
+
+import os
+import yaml
+import kubernetes
+import base64
+
+with open(os.environ["KUBECONFIG"], "r"):
+    kubeconfig = yaml.load(fd.read(), yaml.FullLoader)
+
+cluster = kubeconfig["clusters"][0]
+ca_b64 = cluster["cluster"]["certificate-authority-data"]
+host = cluster["cluster"]["server"]
+user = kubeconfig["users"][0]
+token = user["user"]["token"]
+ca = base64.b64decode(ca_b64.encode("utf-8").decode("utf-8")
+with open("ca.crt", "w") as fd:
+  fd.write(ca) 
+configuration = kubernetes.client.Configuration()
+configuration.host = host
+configuration.api_key = {"authorization": token}
+configuration.api_key_prefix = {"authorization": "bearer"}
+configuration.ssl_ca_crt = "ca.crt"
+# The above does not work so I still needed to disable SSL
+configuration.verify_ssl = False
+client = kubernetes.client.ApiClient(configuration)
+v1 = kubernetes.client.CoreV1Api(client)
+v1.list_node()
