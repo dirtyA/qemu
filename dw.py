@@ -15,7 +15,7 @@ async def list_pods():
 
     configuration = client.Configuration()
     v1 = client.CoreV1Api()
-    pods = v1.list_namespaced_pod(namespace="milvus-operator")
+    pods = v1.list_namespaced_pod(namespace="www")
     res = []
     for pod in pods.otems:
         res.append(pod.metadata.name)
