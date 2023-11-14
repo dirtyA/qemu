@@ -1,5 +1,7 @@
 from fastapi import FastAPI, Body
-import kubernetes.client
+from kubernetes import client， config
+
+config.kube_config.load_kube_config(config_file='/root/.kube/config')
 
 app = FastAPI()
 
@@ -11,18 +13,13 @@ async def list_pods():
     :return: pod 名称列表。
     """
 
-    configuration = kubernetes.client.Configuration()
-    # Configure API key authorization: BearerToken
-    configuration.api_key['authorization'] = 'YOUR_API_KEY'
-
-    with kubernetes.client.ApiClient(configuration) as api_client:
-        api_instance = kubernetes.client.CoreV1Api(api_client)
-
-        # 获取 pod 列表。
-        pods = api_instance.list_namespaced_pod("www")
-
-        # 返回 pod 名称列表。
-        return pods.items
+    configuration = client.Configuration()
+    v1 = client.CoreV1Api()
+    pods = v1.list_namespaced_pod(namespace="milvus-operator")
+    res = []
+    for pod in pods.otems:
+        res.append(pod.metadata.name)
+    return res
 
 
 def delete_pods(pod_names: List[str]):
@@ -33,25 +30,21 @@ def delete_pods(pod_names: List[str]):
     :return: 删除 Pod 的结果。
     """
 
-    configuration = kubernetes.client.Configuration()
-    # Configure API key authorization: BearerToken
-    configuration.api_key['authorization'] = 'YOUR_API_KEY'
-
-    with kubernetes.client.ApiClient(configuration) as api_client:
-        api_instance = kubernetes.client.CoreV1Api(api_client)
+    configuration = client.Configuration()
+    v1 = client.CoreV1Api()
 
         # 删除 Pod。
-        try:
-            for pod_name in pod_names:
-                api_response = api_instance.delete_namespaced_pod(
-                    pod_name,
-                    "www",
-                    grace_period_seconds=56,
-                    orphan_dependents=True
-                )
-            return {"success": True}
-        except ApiException as e:
-            return {"success": False, "message": e.body["message"]}
+    try:
+        for pod_name in pod_names:
+            api_response = v1.delete_namespaced_pod(
+                pod_name,
+                "www",
+                grace_period_seconds=56,
+                orphan_dependents=True
+            )
+        return {"success": True}
+    except ApiException as e:
+        return {"success": False, "message": e.body["message"]}
 
 
 @app.post("/restart1")
